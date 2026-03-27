@@ -1,5 +1,66 @@
 # Bizcord microservices
 
-Monorepo for Bizcord: API gateway, sample services, shared packages, and the **messaging** microservice (`apps/messaging-microservice`).
+A small .NET monorepo used for system integration exercises: several ASP.NET Core apps, shared NuGet-style projects, RabbitMQ messaging via **EasyNetQ**, and Docker.
 
-See each app’s README under `apps/<service>/` for how to run and test locally.
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `apps/api-gateway` | Ocelot-based API gateway |
+| `apps/messaging-microservice` | REST API for chat-style messages; publishes `MessagePostedEvent` to RabbitMQ |
+| `apps/sample-microservice` | Sample service (ping/pong messaging) |
+| `apps/pong-microservice` | Consumer-style sample |
+| `packages/MessageClient` | `IMessageClient` + EasyNetQ adapter, DI extensions |
+| `packages/Shared.Contracts` | DTOs and integration events shared between services |
+| `tests/E2E` | End-to-end tests |
+
+`global.json` pins the solution to the **.NET 8** SDK line. On Windows, if `dotnet --version` shows 6.x but you have 8.x installed under `%LOCALAPPDATA%\Microsoft\dotnet`, run `.\build.ps1` from this folder or put that directory first on your `PATH`.
+
+## Prerequisites
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (optional, for RabbitMQ + containerized runs)
+
+## Build
+
+From this directory:
+
+```powershell
+dotnet build apps\messaging-microservice\messaging-microservice.sln -c Release
+```
+
+Or:
+
+```powershell
+.\build.ps1
+```
+
+Restore assumes a working NuGet configuration. This repo includes a root `nuget.config` that clears broken Visual Studio fallback package paths when needed.
+
+## Messaging service (quick start)
+
+Run with **Docker Compose** (RabbitMQ + API, Swagger on port 8080):
+
+```powershell
+cd apps\messaging-microservice
+docker compose up --build
+```
+
+- Swagger: [http://localhost:8080/swagger](http://localhost:8080/swagger)
+- RabbitMQ management UI: [http://localhost:15672](http://localhost:15672) (guest / guest)
+
+Run the API only on the host (Swagger on 5290). You need a reachable RabbitMQ for publishes to succeed (`RabbitMQ:ConnectionString` or `RabbitMQ__ConnectionString`):
+
+```powershell
+dotnet run --project apps\messaging-microservice\src\MessagingMicroservice.csproj
+```
+
+More detail: [apps/messaging-microservice/README.md](apps/messaging-microservice/README.md).
+
+## Tests
+
+```powershell
+dotnet test apps\messaging-microservice\tests\MessagingMicroservice.Tests.csproj -c Release
+```
+
+Other apps may have their own solutions and READMEs under `apps/<name>/`.
