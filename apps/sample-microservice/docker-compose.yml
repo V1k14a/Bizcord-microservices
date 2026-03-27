@@ -1,0 +1,22 @@
+services:
+  rabbitmq:
+    user: "0"
+    image: rabbitmq:3-management
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  samplemicroservice:
+    image: samplemicroservice
+    build:
+      context: ../..
+      dockerfile: apps/sample-microservice/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "5001:8080"

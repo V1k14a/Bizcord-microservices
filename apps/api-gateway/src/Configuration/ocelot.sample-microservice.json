@@ -1,0 +1,24 @@
+{
+  "Routes": [
+    {
+      "UpstreamPathTemplate": "/ping",
+      "UpstreamHttpMethod": ["Post"],
+      "DownstreamPathTemplate": "/pingpong/ping",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "samplemicroservice",
+          "Port": 8080
+        }
+      ],
+      "Key": "ping",
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddHeadersToRequest": {
+        "X-UserId": "Claims[sub] > value"
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  messaging-microservice:
+    build:
+      context: ../..
+      dockerfile: apps/messaging-microservice/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Default is Production → Swagger is disabled; use Development so //swagger works in Docker.
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      RabbitMQ__ConnectionString: host=rabbitmq;username=guest;password=guest
