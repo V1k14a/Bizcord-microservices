@@ -1,0 +1,89 @@
+{
+  "Routes": [
+    {
+      "UpstreamPathTemplate": "/messaging-microservice/messages",
+      "UpstreamHttpMethod": [ "Get", "Post" ],
+      "DownstreamPathTemplate": "/api/messages",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "messaging-microservice",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "RouteClaimsRequirement": {
+        "role": "User"
+      },
+      "AddHeadersToRequest": {
+        "X-UserId": "Claims[sub] > value"
+      }
+    },
+    {
+      "UpstreamPathTemplate": "/messaging-microservice/messages/{id}",
+      "UpstreamHttpMethod": [ "Get", "Put", "Delete" ],
+      "DownstreamPathTemplate": "/api/messages/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "messaging-microservice",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "RouteClaimsRequirement": {
+        "role": "User"
+      },
+      "AddHeadersToRequest": {
+        "X-UserId": "Claims[sub] > value"
+      }
+    },
+    {
+      "UpstreamPathTemplate": "/messaging-microservice/messages/async",
+      "UpstreamHttpMethod": [ "Post" ],
+      "DownstreamPathTemplate": "/api/messages/async",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "messaging-microservice",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "RouteClaimsRequirement": {
+        "role": "User"
+      },
+      "AddHeadersToRequest": {
+        "X-UserId": "Claims[sub] > value"
+      }
+    },
+    {
+      "UpstreamPathTemplate": "/messaging-microservice/internal/messages/channel/{channelId}",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/api/internal/messages/channel/{channelId}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "messaging-microservice",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "RouteClaimsRequirement": {
+        "role": "Service"
+      }
+    }
+  ]
+}

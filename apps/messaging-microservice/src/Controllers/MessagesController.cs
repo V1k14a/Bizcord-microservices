@@ -1,18 +1,26 @@
 using MessagingMicroservice.Api;
 using MessagingMicroservice.Application;
 using MessagingMicroservice.Domain;
+using MessageClient.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Shared.Contracts.Sagas;
 
 namespace MessagingMicroservice.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "User")]
 public class MessagesController : ControllerBase
 {
     private readonly MessagesService _messagesService;
+    private readonly IMessageClient _messageClient;
 
-    public MessagesController(MessagesService messagesService) =>
+    public MessagesController(MessagesService messagesService, IMessageClient messageClient)
+    {
         _messagesService = messagesService;
+        _messageClient = messageClient;
+    }
 
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -29,6 +37,30 @@ public class MessagesController : ControllerBase
     {
         var dto = await _messagesService.GetByIdAsync(id, cancellationToken);
         return dto is null ? NotFound() : Ok(dto);
+    }
+
+    [HttpPost("async")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateViaSaga(
+        [FromBody] CreateMessageRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var sagaId = Guid.NewGuid();
+        await _messageClient.PublishAsync(
+            new InitiateMessagePost
+            {
+                SagaId = sagaId,
+                ChannelId = request.ChannelId,
+                AuthorId = request.AuthorId,
+                Content = request.Content
+            },
+            cancellationToken);
+
+        return Accepted(new { sagaId });
     }
 
     [HttpPost]

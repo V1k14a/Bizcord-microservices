@@ -14,6 +14,13 @@ public sealed class InMemoryMessageRepository : IMessageRepository
     public Task<Message?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         Task.FromResult(_messages.TryGetValue(id, out var m) ? m : null);
 
+    public Task<IReadOnlyList<Message>> GetByChannelIdAsync(Guid channelId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Message>>(
+            _messages.Values
+                .Where(m => m.ChannelId == channelId)
+                .OrderByDescending(m => m.PostedAt)
+                .ToList());
+
     public Task AddAsync(Message message, CancellationToken cancellationToken = default)
     {
         if (!_messages.TryAdd(message.Id, message))

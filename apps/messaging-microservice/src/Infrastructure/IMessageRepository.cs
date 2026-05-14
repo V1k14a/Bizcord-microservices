@@ -8,6 +8,8 @@ public interface IMessageRepository
 
     Task<Message?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Message>> GetByChannelIdAsync(Guid channelId, CancellationToken cancellationToken = default);
+
     Task AddAsync(Message message, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(Message message, CancellationToken cancellationToken = default);

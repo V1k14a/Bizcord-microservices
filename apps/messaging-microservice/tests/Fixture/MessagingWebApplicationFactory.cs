@@ -13,6 +13,7 @@ public class MessagingWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("Jwt:SigningKey", JwtTestTokens.SigningKey);
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IMessageClient>();

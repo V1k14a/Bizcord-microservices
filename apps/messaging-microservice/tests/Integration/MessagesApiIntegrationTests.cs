@@ -1,10 +1,12 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FluentAssertions;
 using MessagingMicroservice.Api;
 using MessagingMicroservice.Tests.Fixture;
 using Shared.Contracts.Events;
 using Shared.Contracts.Messages;
+using Shared.Contracts.Sagas;
 using Xunit;
 
 namespace MessagingMicroservice.Tests.Integration;
@@ -19,6 +21,8 @@ public class MessagesApiIntegrationTests : IClassFixture<MessagingWebApplication
         _recording = factory.Recording;
         _recording.Clear();
         _client = factory.CreateClient();
+        _client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", JwtTestTokens.User());
     }
 
     [Fact]
@@ -123,4 +127,64 @@ public class MessagesApiIntegrationTests : IClassFixture<MessagingWebApplication
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task Post_async_returns_202_and_publishes_InitiateMessagePost()
+    {
+        var channelId = Guid.NewGuid();
+        var response = await _client.PostAsJsonAsync(
+            "/api/messages/async",
+            new CreateMessageRequest
+            {
+                ChannelId = channelId,
+                AuthorId = Guid.NewGuid(),
+                Content = "saga"
+            });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var body = await response.Content.ReadFromJsonAsync<SagaAcceptedResponse>();
+        body.Should().NotBeNull();
+        body!.SagaId.Should().NotBeEmpty();
+
+        var initiated = _recording.SinglePublished<InitiateMessagePost>();
+        initiated.Should().NotBeNull();
+        initiated!.SagaId.Should().Be(body.SagaId);
+        initiated.ChannelId.Should().Be(channelId);
+        initiated.Content.Should().Be("saga");
+    }
+
+    [Fact]
+    public async Task Internal_channel_list_requires_service_role()
+    {
+        var channelId = Guid.NewGuid();
+        await _client.PostAsJsonAsync(
+            "/api/messages",
+            new CreateMessageRequest
+            {
+                ChannelId = channelId,
+                AuthorId = Guid.NewGuid(),
+                Content = "internal gate"
+            });
+
+        var forbidden = await _client.GetAsync($"/api/internal/messages/channel/{channelId}");
+        forbidden.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        try
+        {
+            _client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", JwtTestTokens.Service());
+            var ok = await _client.GetAsync($"/api/internal/messages/channel/{channelId}");
+            ok.StatusCode.Should().Be(HttpStatusCode.OK);
+            var list = await ok.Content.ReadFromJsonAsync<List<MessageDto>>();
+            list.Should().NotBeNull();
+            list!.Should().ContainSingle(m => m.Content == "internal gate");
+        }
+        finally
+        {
+            _client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", JwtTestTokens.User());
+        }
+    }
+
+    private sealed record SagaAcceptedResponse(Guid SagaId);
 }

@@ -10,6 +10,8 @@ namespace MessagingMicroservice.Application;
 
 public class MessagesService
 {
+    private static readonly TimeSpan RepositoryTimeout = TimeSpan.FromSeconds(10);
+
     private readonly IMessageRepository _repository;
     private readonly IMessageClient _messageClient;
 
@@ -25,9 +27,13 @@ public class MessagesService
         string content,
         CancellationToken cancellationToken = default)
     {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(RepositoryTimeout);
+        var ct = cts.Token;
+
         var body = MessageContent.Create(content);
         var message = Message.Create(channelId, authorId, body);
-        await _repository.AddAsync(message, cancellationToken);
+        await _repository.AddAsync(message, ct);
 
         await _messageClient.PublishAsync(
             new MessagePostedEvent
@@ -37,20 +43,34 @@ public class MessagesService
                 AuthorId = message.AuthorId,
                 PostedAt = message.PostedAt
             },
-            cancellationToken);
+            ct);
 
         return MapToDto(message);
     }
 
     public async Task<IReadOnlyList<MessageDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var list = await _repository.GetAllAsync(cancellationToken);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(RepositoryTimeout);
+        var list = await _repository.GetAllAsync(cts.Token);
+        return list.Select(MapToDto).ToList();
+    }
+
+    public async Task<IReadOnlyList<MessageDto>> GetByChannelAsync(
+        Guid channelId,
+        CancellationToken cancellationToken = default)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(RepositoryTimeout);
+        var list = await _repository.GetByChannelIdAsync(channelId, cts.Token);
         return list.Select(MapToDto).ToList();
     }
 
     public async Task<MessageDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var message = await _repository.GetByIdAsync(id, cancellationToken);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(RepositoryTimeout);
+        var message = await _repository.GetByIdAsync(id, cts.Token);
         return message is null ? null : MapToDto(message);
     }
 
@@ -59,18 +79,26 @@ public class MessagesService
         string content,
         CancellationToken cancellationToken = default)
     {
-        var message = await _repository.GetByIdAsync(id, cancellationToken);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(RepositoryTimeout);
+        var ct = cts.Token;
+
+        var message = await _repository.GetByIdAsync(id, ct);
         if (message is null)
             return null;
 
         var body = MessageContent.Create(content);
         message.UpdateContent(body);
-        await _repository.UpdateAsync(message, cancellationToken);
+        await _repository.UpdateAsync(message, ct);
         return MapToDto(message);
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default) =>
-        await _repository.DeleteAsync(id, cancellationToken);
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(RepositoryTimeout);
+        return await _repository.DeleteAsync(id, cts.Token);
+    }
 
     private static MessageDto MapToDto(Message message) =>
         new()
